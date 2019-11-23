@@ -73,7 +73,7 @@ class NeuralNetwork:
                 # self.rememberweightT_1.append(np.zeros((len(self.input), self.Node[i])))
                 # self.rememberweightT_2.append(np.zeros((len(self.input), self.Node[i])))
 
-    def FeedForward(self):
+    def FeedForward(self, weight):
         # each sample, each generation
         self.output = []
         self.output.append(self.input.T)
@@ -89,10 +89,10 @@ class NeuralNetwork:
 
     def fit(self, nchromosome, generation):
         for i in range(nchromosome): # individual
-            self.gene()
+            self.weight.append(self.gene()) # weight have dimension chromosome -> gene
             for j in range(len(self.Fullinput)): # sample
                 
-                out = self.FeedForward()
+                out = self.FeedForward(self.weight[i])
                 
                 err = out - self.FullTrueOutput[j]
 
@@ -102,7 +102,7 @@ class NeuralNetwork:
 
             # self.minimumLoss = min(sumloss, self.minimumLoss)
 
-    def gene(self):
+    def gene(self): # return list
         weight = []
         for  i in range(len(self.Node)):
             if (i == 0):
