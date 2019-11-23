@@ -44,6 +44,7 @@ class NeuralNetwork:
         self.countsample = 0
         self.rememberweightT_2 = []
         self.individual = 0
+        self.chromosome = []
         
     def addLayer(self, node):
         self.countLayer+=1
@@ -86,8 +87,8 @@ class NeuralNetwork:
         
         return out
 
-    def fit(self, chromosome, generation):
-        for i in range(chromosome): # individual
+    def fit(self, nchromosome, generation):
+        for i in range(nchromosome): # individual
             self.gene()
             for j in range(len(self.Fullinput)): # sample
                 
@@ -102,11 +103,14 @@ class NeuralNetwork:
             # self.minimumLoss = min(sumloss, self.minimumLoss)
 
     def gene(self):
+        weight = []
         for  i in range(len(self.Node)):
             if (i == 0):
-                self.weight.append(2*np.random.rand(len(self.input), self.Node[i]) - 1)
+                weight.append(2*np.random.rand(len(self.input), self.Node[i]) - 1)
             else : 
-                self.weight.append(2*np.random.rand(self.Node[i-1], self.Node[i]) - 1)
+                weight.append(2*np.random.rand(self.Node[i-1], self.Node[i]) - 1)
+            
+        return weight
 
     def fitness(self, mse): #### Cal fitness from error | input Integer
         return
