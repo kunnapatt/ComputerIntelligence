@@ -1,6 +1,8 @@
 import numpy as np
 import copy
 import random
+import matplotlib
+import matplotlib.pyplot as plt
 #### data | 1). ID Number, 2). Diagnosis (M = malignant, B = benign) -> Class 3). 3 -> 32 is features ####
 
 def main():
@@ -11,25 +13,33 @@ def main():
     input_x = data[1:] # 2 dim for each features and sample
     true_x = data[0] # 1 dim for each sample
 
-    neural = NeuralNetwork(input_x, true_x)
-    neural.addLayer(5)
-    # neural.addLayer(10)
-    # neural.addLayer(10)
-    # neural.addLayer(10)
-    # neural.addLayer(5)
-    # neural.addLayer(2)
-    neural.addLayer(1)
-    neural.fit(100, 10)
-    # a = neural.gene()
+    input_x = transposeList(input_x)
 
-    # print(len(a[0]))
-    # print(len(a[1]))
-    # print(len(a[2]))
+    x_train, y_train, x_test, y_test= createFold(10, input_x, true_x)
 
-    # print(neural.Node)
+    print((len(x_train), len(x_test)))
+    print((len(x_train[0]), len(x_test)))
+    print((len(x_train[0][0]), len(x_test)))
 
-    # print(a[0])
+    for i in range(len(x_train)): #### Fold
+        print("Fold {}" .format(i+1))
+        x_train[i] = transposeList(x_train[i])
+        x_test[i] = transposeList(x_test[i])
 
+        neural = NeuralNetwork(x_train[i], y_train[i])
+        neural.addLayer(50)
+        # neural.addLayer(10)
+        # neural.addLayer(5)
+        # neural.addLayer(10)
+        # neural.addLayer(5)
+        neural.addLayer(1)
+        
+        neural.fit(20, 35)
+        # neural.plotFitness(i+1)
+        neural.evaluate(x_test[i], y_test[i])
+
+        print("---------------")
+        break
 
 def getData(): ### return list
     path = 'wdbc.data.txt'
@@ -45,9 +55,9 @@ def getData(): ### return list
         new.append([])
         for j in range(len(listdata[i])) :
             if listdata[i][j] == 'M' :
-                new[i].append(0)
+                new[i].append(0.1)
             elif listdata[i][j] == 'B' :
-                new[i].append(1)
+                new[i].append(0.9)
             else :
                 new[i].append(float(listdata[i][j]))
 
@@ -100,7 +110,8 @@ class NeuralNetwork:
         self.chromosome = {}
         self.nchromosome = 0
         self.child = []
-        
+        self.fitnessplot = []
+
     def addLayer(self, node):
         self.countLayer+=1
         self.Node.append(node)
@@ -128,13 +139,11 @@ class NeuralNetwork:
                 # self.rememberweightT_1.append(np.zeros((len(self.input), self.Node[i])))
                 # self.rememberweightT_2.append(np.zeros((len(self.input), self.Node[i])))
 
-    def FeedForward(self, chromosome):
-        # each sample, each generation
+    def FeedForward(self, chromosome): # each sample, each generation
         self.output = []
         self.output.append(self.input.T)
         out = np.array(self.output[0])
         for i in range(len(self.Node)): # feed in each layer
-            # v = np.dot(self.output[i], chromosome[i]) + self.bias[i]
             v = np.dot(copy.deepcopy(self.output[i]), copy.deepcopy(chromosome[i]))
             out = self.sigmoid(v)
             self.output.append(out)
@@ -143,6 +152,7 @@ class NeuralNetwork:
 
     def fit(self, nchromosome, generation):
         self.nchromosome = nchromosome
+        self.fitnessplot = []
         for k in range(generation) :
             fitne = []
             self.chromosome = {}
@@ -152,15 +162,12 @@ class NeuralNetwork:
                     temp = np.asarray(temp)
                     out = self.FeedForward(temp)
                 else :
-                    # print(len(self.child))
                     out = self.FeedForward(self.child[i])
 
                 self.Loss = []
 
                 for j in range(len(self.Fullinput[0])): # sample
-
                     err = out[j] - self.FullTrueOutput[j]
-
                     self.Loss.append(err)
 
                 mse = np.asarray(copy.deepcopy(self.Loss))
@@ -168,25 +175,26 @@ class NeuralNetwork:
                 mse = np.mean(mse) # scalar
                 fitness = self.fitness(mse)
                 fitne.append(fitness)
-                self.chromosome[fitness] = {}
-                self.chromosome[fitness] = temp
+                if k == 0 :
+                    self.chromosome[fitness] = temp
+                else :
+                    self.chromosome[fitness] = self.child[i]
             
             fitne = np.asarray(copy.deepcopy(fitne))
-            fitne = np.power(fitne, 2)/ 2
             fitne = np.mean(fitne)
             # print("Generation {} Fitness {}" .format(k+1, fitne))
+            self.fitnessplot.append(fitne)
             self.chromosome = self.matingPool()
-            child = self.crossover(30)
+            n_crossingpoint = np.random.randint(0, nchromosome-1)
+            child = self.crossover(n_crossingpoint)
             self.child = self.mutate(child)
 
     def gene(self): # return list
         weight = []
         for  i in range(len(self.Node)):
             if (i == 0):
-                # weight.append(2*np.random.rand(len(self.Fullinput), self.Node[i]) - 1)
                 weight.append(np.random.uniform(-1, 1, (len(self.Fullinput), self.Node[i])))
             else : 
-                # weight.append(2*np.random.rand(self.Node[i-1], self.Node[i]) - 1)
                 weight.append(np.random.uniform(-1, 1, (self.Node[i-1], self.Node[i])))
             
         return weight
@@ -196,11 +204,10 @@ class NeuralNetwork:
 
     def matingPool(self): # sort fitness value in chromosome
         matingpool = {}
-
         cou = 0
         for i in sorted(self.chromosome.keys(), reverse=True) :
 
-            matingpool[i] = self.chromosome[i]
+            matingpool[i] = copy.deepcopy(self.chromosome[i])
             cou += 1
 
         return matingpool
@@ -244,7 +251,7 @@ class NeuralNetwork:
             for i in self.chromosome.keys() :
                 if cou == n_residual :
                     break
-                child.append(self.chromosome[i])
+                child.append(copy.deepcopy(self.chromosome[i]))
                 cou += 1
 
         return child
@@ -262,10 +269,75 @@ class NeuralNetwork:
                 list_mutate = np.random.uniform(-1, 1, n_gene)
 
                 for j in range(n_gene):
-                    gene[list_genemutate[j]] += list_mutate[j]
+                    gene[list_genemutate[j]] += copy.deepcopy(list_mutate[j])
                 
                 child[i][k] = np.reshape(gene, target)
         return child
+
+    def evaluate(self, x_test, y_test):
+        x_test = np.asarray(copy.deepcopy(x_test))
+        y_test = np.asarray(copy.deepcopy(y_test))
+
+        self.input = x_test
+        fitne = []
+        for i in range(len(self.child)):
+
+            predict = self.FeedForward(self.child[i])
+
+            Loss = []
+            for j in range(len(y_test)):
+                err = predict[j] - y_test[j]
+                Loss.append(err)
+
+
+            mse = np.asarray(copy.deepcopy(Loss))
+            mse = np.power(mse, 2)/ 2
+            mse = np.mean(mse) # scalar
+            fitness = self.fitness(mse)
+            fitne.append(fitness)
+
+        fitne = np.asarray(copy.deepcopy(fitne))
+        fitne = np.mean(fitne)
+        print("Fitness = {}" .format(fitne))                
+
+    def plotFitness(self, fold):
+        fitness = self.fitnessplot
+        fig, ax = plt.subplots()
+        ax.plot(range(1, len(fitness)+1), fitness)
+        ax.set(xlabel='Generation', ylabel='Fitness', title='Fold {}' .format(fold))
+        fig.savefig("Fold {}.png" .format(fold))
+
+def createFold(fold, x_data, y_data):
+    crossvalidation = int(len(x_data)*fold/100)
+    # print(len(x_data))
+    x_train_testingset = []
+    y_true_testingset = []
+
+    x_train_trainingset = []
+    y_true_trainingset = []
+
+    for i in range(fold):
+        if i == (fold-1) :
+            x_train_testingset.append(x_data[0+i*crossvalidation:len(x_data)])
+            y_true_testingset.append(y_data[0+i*crossvalidation:len(y_data)])
+
+            x_train_trainingset.append(x_data[0:0+i*crossvalidation])
+            y_true_trainingset.append(y_data[0:0+i*crossvalidation])
+        else:
+            x_train_testingset.append(x_data[0+i*crossvalidation:crossvalidation+i*crossvalidation])
+            y_true_testingset.append(y_data[0+i*crossvalidation:crossvalidation+i*crossvalidation])
+
+            x_train_trainingset1 = x_data[0:i*crossvalidation]
+            x_train_trainingset2 = x_data[crossvalidation*(i+1):len(x_data)]
+
+            x_train_trainingset.append(x_train_trainingset1 + x_train_trainingset2)
+
+            y_true_trainingset1 = y_data[0:i*crossvalidation]
+            y_true_trainingset2 = y_data[crossvalidation*(i+1):len(x_data)]
+
+            y_true_trainingset.append(y_true_trainingset1 + y_true_trainingset2)
+
+    return x_train_trainingset, y_true_trainingset, x_train_testingset, y_true_testingset
 
 if __name__ == "__main__":
     main()
